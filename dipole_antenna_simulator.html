@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Smart Dipole Antenna Simulator | EME</title>
+<style>
+:root{--bg:#070b1a;--card:rgba(255,255,255,.05);--bd:rgba(255,255,255,.1);--tx:#e6ecff;--mut:#8b97c3;--a:#22d3ee;--b:#a78bfa;--g:#34d399;--r:#fb7185;--y:#fbbf24}
+*{box-sizing:border-box;margin:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;color:var(--tx);min-height:100vh;padding:18px;background:radial-gradient(1100px 600px at 5% -10%,#1b2a6b66,transparent),radial-gradient(900px 500px at 100% 0,#5b21b655,transparent),var(--bg)}
+header{text-align:center;margin-bottom:16px}
+h1{font-size:1.8rem;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+header p{color:var(--mut);font-size:.9rem;margin-top:4px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(12,1fr);max-width:1400px;margin:auto}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:14px;backdrop-filter:blur(8px)}
+.card h2{font-size:.95rem;color:var(--a);margin-bottom:10px;letter-spacing:.4px}
+.c4{grid-column:span 4}.c5{grid-column:span 5}.c7{grid-column:span 7}.c8{grid-column:span 8}.c12{grid-column:span 12}
+@media(max-width:1000px){.grid>*{grid-column:span 12!important}}
+canvas{width:100%;display:block;border-radius:10px}
+label{display:block;font-size:.82rem;color:var(--mut);margin:11px 0 3px}
+label b{color:var(--tx);float:right}
+input[type=range]{width:100%;accent-color:var(--a)}
+select{width:100%;background:#111a3a;color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:7px}
+button{background:linear-gradient(90deg,#0891b2,#7c3aed);color:#fff;border:0;border-radius:9px;padding:8px 12px;margin:6px 6px 0 0;cursor:pointer;font-weight:600;font-size:.8rem}
+button:hover{filter:brightness(1.2)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.t{background:rgba(255,255,255,.04);border:1px solid var(--bd);border-radius:12px;padding:10px;text-align:center}
+.t small{color:var(--mut);display:block;font-size:.7rem;margin-bottom:3px}
+.t b{font-size:1.2rem}.t i{font-style:normal;color:var(--mut);font-size:.75rem}
+.adv{margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.35);font-size:.88rem;line-height:1.5}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th,td{padding:7px 6px;text-align:center;border-bottom:1px solid var(--bd)}
+th{color:var(--a)}tr.me td{background:rgba(34,211,238,.12);font-weight:700}
+.step{font-family:Consolas,monospace;font-size:.76rem;line-height:1.55;padding:3px 0;border-bottom:1px dashed var(--bd);color:#cdd6ff}
+.step span{color:var(--y)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.f{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px;font-size:.85rem}
+.f div{background:rgba(255,255,255,.04);border-radius:10px;padding:10px}
+.f code{display:block;color:var(--y);font-size:.9rem;margin:4px 0;font-family:Consolas,monospace}
+.f em{color:var(--mut);font-style:normal;font-size:.78rem}
+.cap{font-size:.72rem;color:var(--mut);text-align:center;margin-top:4px}
+</style></head><body>
+<header><h1>AI Smart Dipole Antenna Design &amp; Radiation Pattern Simulator</h1>
+<p>Electromagnetic Engineering (EME) • Unit 5 • Free-space, thin-wire dipole with sinusoidal current</p></header>
+
+<div class="grid">
+<div class="card c4"><h2>⚙ INPUT PARAMETERS</h2>
+<label>Operating frequency f <b id="fv"></b></label><input type="range" id="f" min="50" max="1000" step="1" value="300">
+<label>Antenna length L <b id="Lv"></b></label><input type="range" id="L" min="0.05" max="3" step="0.005" value="0.47">
+<label>Wire radius a <b id="av"></b></label><input type="range" id="a" min="0.2" max="10" step="0.1" value="1">
+<label>Conductor material</label><select id="m"><option>Copper</option><option>Aluminium</option><option>Brass</option><option>Iron</option></select>
+<label>Feed line impedance Z₀</label><select id="z"><option value="50">50 Ω</option><option value="75">75 Ω</option><option value="300">300 Ω</option></select>
+<button id="bHalf">Set L = λ/2</button><button id="bRes">Set resonant length</button><button id="bRst">Reset</button></div>
+
+<div class="card c8"><h2>📡 ANTENNA MODEL (animated current &amp; radiation)</h2><canvas id="cAnt" style="height:330px"></canvas></div>
+
+<div class="card c12"><h2>📊 PERFORMANCE PARAMETERS</h2><div class="tiles" id="tiles"></div><div class="adv" id="adv"></div></div>
+
+<div class="card c4"><h2>2D PATTERN – E-plane (θ)</h2><canvas id="cE" style="height:280px"></canvas><div class="cap">Normalised |E| • dashed ring = half-power (−3 dB)</div></div>
+<div class="card c4"><h2>2D PATTERN – H-plane (φ)</h2><canvas id="cH" style="height:280px"></canvas><div class="cap">Omnidirectional in azimuth</div></div>
+<div class="card c4"><h2>3D RADIATION PATTERN</h2><canvas id="c3" style="height:280px;cursor:grab"></canvas><div class="cap">Drag to rotate / tilt</div></div>
+
+<div class="card c8"><h2>📉 S11 (RETURN LOSS) vs FREQUENCY</h2><canvas id="cS" style="height:300px"></canvas><div class="cap">Sweep: 0.5f to 1.5f for the current physical length • green zone = S11 &lt; −10 dB bandwidth</div></div>
+<div class="card c4"><h2>🧮 LIVE CALCULATION (step by step)</h2><div id="steps"></div></div>
+
+<div class="card c12"><h2>⚖ PERFORMANCE COMPARISON (at current f, radius, material &amp; Z₀)</h2><div style="overflow-x:auto"><table id="tab"></table></div></div>
+
+<div class="card c12"><h2>🤖 AI DESIGN OPTIMISER (Genetic Algorithm)</h2>
+<div class="two" style="grid-template-columns:1fr 1fr">
+<div><label>Optimisation goal</label><select id="goal"><option value="2">Balanced (gain + matching)</option><option value="0">Maximum realised gain</option><option value="1">Best impedance match (min S11)</option></select>
+<button id="bAI">▶ Run AI optimiser</button><button id="bApply" style="display:none">Apply recommended design</button>
+<div class="adv" id="aiOut">The AI searches thousands of (length, radius) combinations at the current frequency using evolution: selection → crossover → mutation, then recommends dimensions.</div></div>
+<div><canvas id="cGA" style="height:200px"></canvas><div class="cap">Convergence: best fitness per generation</div></div></div></div>
+
+<div class="card c12"><h2>📘 THEORY &amp; FORMULAS USED</h2><div class="f">
+<div><b>Wavelength</b><code>λ = c / f ,  k = 2π/λ</code><em>Wave solution of Maxwell's equations in free space, c = 3×10⁸ m/s</em></div>
+<div><b>Far-field of finite dipole</b><code>E<sub>θ</sub> ∝ [cos(kL/2·cosθ) − cos(kL/2)] / sinθ</code><em>From the sinusoidal current I(z)=I₀ sin[k(L/2−|z|)]. For L=λ/2: cos(π/2·cosθ)/sinθ</em></div>
+<div><b>Power density &amp; radiation intensity</b><code>U = r²|E|²/(2η₀) , η₀ = 120π Ω</code><em>Poynting vector → radiation intensity U(θ)</em></div>
+<div><b>Directivity</b><code>D = 4πU<sub>max</sub>/P<sub>rad</sub> = 2F²<sub>max</sub> / ∫F² sinθ dθ</code><em>Half-wave dipole: D = 1.64 (2.15 dBi)</em></div>
+<div><b>Radiation resistance</b><code>R<sub>r</sub> = (η₀/2π)∫F² sinθ dθ / sin²(kL/2)</code><em>Half-wave dipole: ≈ 73 Ω</em></div>
+<div><b>Ohmic loss &amp; efficiency</b><code>R<sub>s</sub>=√(πfμ₀/σ) , R<sub>L</sub>=R<sub>s</sub>L/(4πa) , e=R<sub>r</sub>/(R<sub>r</sub>+R<sub>L</sub>)</code><em>Skin-effect surface resistance of the conductor</em></div>
+<div><b>Gain</b><code>G = e · D</code><em>Gain = directivity × radiation efficiency</em></div>
+<div><b>Reflection, S11, VSWR</b><code>Γ=(Z<sub>in</sub>−Z₀)/(Z<sub>in</sub>+Z₀) , S11=20log|Γ| , RL=−S11 , VSWR=(1+|Γ|)/(1−|Γ|)</code><em>Z<sub>in</sub> = R<sub>r</sub>+R<sub>L</sub>+jX (X from Si/Ci integrals; X≈+42.5 Ω at exactly λ/2)</em></div>
+<div><b>AI part</b><code>maximise fitness(L, a)</code><em>Genetic algorithm explores L ∈ [0.3λ,1.3λ], a ∈ [0.5,8] mm and evaluates every candidate with the above physics.</em></div>
+</div></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const C=3e8,ETA=120*Math.PI,MU0=4e-7*Math.PI,EG=0.5772156649;
+const MAT={Copper:5.8e7,Aluminium:3.5e7,Brass:1.5e7,Iron:1e7};
+const f2=(v,d=2)=>Number(v).toFixed(d);
+function simp(fn,a,b,n){n+=n%2;const h=(b-a)/n;let s=fn(a)+fn(b);for(let i=1;i<n;i++)s+=fn(a+i*h)*(i%2?4:2);return s*h/3}
+const nS=x=>Math.max(100,Math.ceil(x*12));
+const Si=x=>simp(t=>t<1e-12?1:Math.sin(t)/t,0,x,nS(x));
+const Ci=x=>EG+Math.log(x)+simp(t=>t<1e-12?0:(Math.cos(t)-1)/t,0,x,nS(x));
+const Fth=(t,h)=>{const s=Math.sin(t);return s<1e-9?0:(Math.cos(h*Math.cos(t))-Math.cos(h))/s};
+
+function analyze(f,L,a,sig,Z0,full){
+ const lam=C/f,k=2*Math.PI/lam,kL=k*L,h=kL/2,N=360,v=[];let I=0,Gm=0,im=0;
+ for(let i=0;i<N;i++){const t=(i+.5)*Math.PI/N,x=Fth(t,h);v.push(x);I+=x*x*Math.sin(t)*Math.PI/N;if(Math.abs(x)>Gm){Gm=Math.abs(x);im=i}}
+ const D=2*Gm*Gm/I,s2=Math.max(Math.sin(h)**2,.002),sk=Si(kL);
+ const Xm=30*(2*sk+Math.cos(kL)*(2*sk-Si(2*kL))-Math.sin(kL)*(2*Ci(kL)-Ci(2*kL)-Ci(2*k*a*a/L)));
+ const Rm=ETA/(2*Math.PI)*I,Rs=Math.sqrt(Math.PI*f*MU0/sig),Rlm=Rs*L/(4*Math.PI*a);
+ const Rr=Rm/s2,Rl=Rlm/s2,X=Xm/s2,R=Rr+Rl,eff=Rm/(Rm+Rlm);
+ const gam=Math.max(Math.hypot(R-Z0,X)/Math.hypot(R+Z0,X),1e-4),G=eff*D,RL=-20*Math.log10(gam);
+ let hp=0;if(full){const th=.5*Gm*Gm;let l=im,r=im;while(l>0&&v[l-1]**2>=th)l--;while(r<N-1&&v[r+1]**2>=th)r++;hp=(r-l+1)*180/N}
+ return{lam,k,kL,h,D,Dd:10*Math.log10(D),G,Gd:10*Math.log10(G),eff,Rr,Rl,X,R,gam,RL,s11:-RL,vswr:(1+gam)/(1-gam),Rs,hp,Gm,I,real:G*(1-gam*gam)}
+}
+const P=()=>({f:+$('f').value*1e6,L:+$('L').value,a:+$('a').value/1000,sig:MAT[$('m').value],Z:+$('z').value});
+const A=(p,f=p.f,L=p.L,a=p.a,full=false)=>analyze(f,L,a,p.sig,p.Z,full);
+function resL(p){const lam=C/p.f;let lo=.3*lam,hi=.5*lam;for(let i=0;i<22;i++){const m=(lo+hi)/2;A(p,p.f,m).X>0?hi=m:lo=m}return(lo+hi)/2}
+function sweep(p){const n=151,fs=[],ys=[];for(let i=0;i<n;i++){const f=p.f*(.5+i/(n-1));fs.push(f);ys.push(A(p,f).s11)}
+ const mi=ys.indexOf(Math.min(...ys));let l=mi,r=mi;if(ys[mi]<-10){while(l>0&&ys[l-1]<-10)l--;while(r<n-1&&ys[r+1]<-10)r++}
+ return{fs,ys,l,r,mi,bw:ys[mi]<-10?(fs[r]-fs[l])/1e6:0}}
+
+let S,PT=[],sw;
+function update(){
+ const p=P();$('fv').textContent=f2(p.f/1e6,0)+' MHz';$('Lv').textContent=f2(p.L,3)+' m';$('av').textContent=f2(p.a*1000,1)+' mm';
+ S=A(p,p.f,p.L,p.a,true);PT=[];for(let i=0;i<=180;i++)PT.push(Math.abs(Fth(i*Math.PI/180,S.h))/S.Gm);
+ sw=sweep(p);metrics(p);table(p);steps(p);advise(p);drawE();drawH();drawS()}
+
+function metrics(p){const good=S.RL>=10;
+ const T=[['Wavelength λ',f2(S.lam,3),'m'],['Length L/λ',f2(p.L/S.lam,3),''],['Directivity',f2(S.Dd),'dBi'],['Gain',f2(S.Gd),'dBi'],
+ ['Efficiency',f2(S.eff*100,1),'%'],['Return loss',f2(S.RL,1),'dB'],['VSWR',f2(S.vswr),''],['Input impedance',`${f2(S.R,1)} ${S.X<0?'−':'+'} j${f2(Math.abs(S.X),1)}`,'Ω'],
+ ['Rad. resistance',f2(S.Rr,1),'Ω'],['HPBW',f2(S.hp,0),'°'],['BW (S11&lt;−10dB)',f2(sw.bw,1),'MHz']];
+ $('tiles').innerHTML=T.map(([a,b,c])=>`<div class="t"><small>${a}</small><b style="color:${a=='Return loss'||a=='VSWR'?(good?'var(--g)':'var(--r)'):'var(--tx)'}">${b}</b> <i>${c}</i></div>`).join('')}
+
+function advise(p){const rl=resL(p);let t;
+ if(S.RL>=10&&Math.abs(S.X)<25)t=`✅ <b>Well matched.</b> Near resonance (X≈${f2(S.X,1)} Ω), ${f2((1-S.gam**2)*100,1)}% of the power is delivered to the antenna. Resonant length at this frequency ≈ <b>${f2(rl,3)} m</b> (${f2(rl/S.lam,3)}λ, i.e. slightly shorter than λ/2 because of end-effect).`;
+ else if(S.X>25)t=`⚠ <b>Antenna looks inductive (X = +${f2(S.X,1)} Ω)</b> – it is electrically too long for this frequency. Shorten it to ≈ <b>${f2(rl,3)} m</b> to cancel the reactance.`;
+ else if(S.X<-25)t=`⚠ <b>Antenna looks capacitive (X = ${f2(S.X,1)} Ω)</b> – it is electrically too short. Lengthen it to ≈ <b>${f2(rl,3)} m</b> for resonance.`;
+ else t=`⚠ Reactance is small but R<sub>in</sub> = ${f2(S.R,1)} Ω does not match Z₀ = ${p.Z} Ω (|Γ| = ${f2(S.gam,2)}). Try another feed impedance (e.g. 75 Ω for a λ/2 dipole), or use the AI optimiser.`;
+ $('adv').innerHTML='<b>🤖 AI Advisor:</b> '+t}
+
+function table(p){const rows=[[.25],[.47],[.5],[.75],[1],[1.25]];let h='<tr><th>Design</th><th>L (m)</th><th>R<sub>in</sub> (Ω)</th><th>X (Ω)</th><th>D (dBi)</th><th>Gain (dBi)</th><th>Eff (%)</th><th>S11 (dB)</th><th>VSWR</th></tr>';
+ const row=(n,r,me)=>`<tr class="${me?'me':''}"><td>${n}</td><td>${f2(r.L,3)}</td><td>${f2(Math.min(r.R,9999),0)}</td><td>${f2(r.X,0)}</td><td>${f2(r.Dd)}</td><td>${f2(r.Gd)}</td><td>${f2(r.eff*100,1)}</td><td>${f2(r.s11,1)}</td><td>${f2(Math.min(r.vswr,999),1)}</td></tr>`;
+ rows.forEach(([x])=>{const L=x*S.lam;h+=row(x+'λ'+(x==.47?' (practical λ/2)':x==.5?' (ideal λ/2)':''),{...A(p,p.f,L),L})});
+ h+=row('Your design ('+f2(p.L/S.lam,3)+'λ)',{...S,L:p.L},1);$('tab').innerHTML=h}
+
+function steps(p){const s=[
+ `λ = c/f = 3×10⁸ / ${f2(p.f/1e6,0)}×10⁶ = <span>${f2(S.lam,4)} m</span>`,
+ `k = 2π/λ = <span>${f2(S.k,3)} rad/m</span> ; kL/2 = <span>${f2(S.h,3)} rad (${f2(S.h*180/Math.PI,1)}°)</span>`,
+ `F(θ)=[cos(kL/2·cosθ)−cos(kL/2)]/sinθ ; F<sub>max</sub>=<span>${f2(S.Gm,3)}</span>`,
+ `∫F² sinθ dθ = <span>${f2(S.I,4)}</span>`,
+ `D = 2F²max/∫ = <span>${f2(S.D,3)}</span> = <span>${f2(S.Dd)} dBi</span>`,
+ `R<sub>r</sub> = (120π/2π)·∫/sin²(kL/2) = <span>${f2(S.Rr,2)} Ω</span>`,
+ `R<sub>s</sub> = √(πfμ₀/σ) = <span>${f2(S.Rs*1000,2)} mΩ</span> ; R<sub>L</sub> = <span>${f2(S.Rl,3)} Ω</span>`,
+ `e = R<sub>r</sub>/(R<sub>r</sub>+R<sub>L</sub>) = <span>${f2(S.eff*100,2)} %</span>`,
+ `G = e·D = <span>${f2(S.G,3)}</span> = <span>${f2(S.Gd)} dBi</span>`,
+ `Z<sub>in</sub> = <span>${f2(S.R,1)} ${S.X<0?'−':'+'} j${f2(Math.abs(S.X),1)} Ω</span>`,
+ `|Γ| = |Z<sub>in</sub>−Z₀|/|Z<sub>in</sub>+Z₀| = <span>${f2(S.gam,3)}</span>`,
+ `RL = −20log|Γ| = <span>${f2(S.RL,2)} dB</span> ; VSWR = <span>${f2(S.vswr,2)}</span>`];
+ $('steps').innerHTML=s.map(x=>`<div class="step">${x}</div>`).join('')}
+
+function sz(c){const r=c.getBoundingClientRect(),d=devicePixelRatio||1,w=Math.round(r.width*d),h=Math.round(r.height*d);if(c.width!=w||c.height!=h){c.width=w;c.height=h}const g=c.getContext('2d');g.setTransform(d,0,0,d,0,0);return[g,r.width,r.height]}
+function rings(g,cx,cy,R){g.lineWidth=1;g.font='10px Segoe UI';g.fillStyle='#8b97c3';
+ for(const q of[.25,.5,.75,1]){g.strokeStyle='rgba(255,255,255,.13)';g.beginPath();g.arc(cx,cy,R*q,0,7);g.stroke();g.fillText(q,cx+3,cy-R*q+10)}
+ g.beginPath();g.moveTo(cx-R,cy);g.lineTo(cx+R,cy);g.moveTo(cx,cy-R);g.lineTo(cx,cy+R);g.stroke()}
+function drawE(){const[g,W,H]=sz($('cE'));g.clearRect(0,0,W,H);const cx=W/2,cy=H/2,R=Math.min(W,H)/2-20;rings(g,cx,cy,R);
+ g.setLineDash([4,4]);g.strokeStyle='#fbbf24';g.beginPath();g.arc(cx,cy,R*.707,0,7);g.stroke();g.setLineDash([]);
+ g.beginPath();for(let i=0;i<=180;i++){const t=i*Math.PI/180;g.lineTo(cx+R*PT[i]*Math.sin(t),cy-R*PT[i]*Math.cos(t))}
+ for(let i=180;i>=0;i--){const t=i*Math.PI/180;g.lineTo(cx-R*PT[i]*Math.sin(t),cy-R*PT[i]*Math.cos(t))}
+ g.fillStyle='rgba(34,211,238,.25)';g.fill();g.strokeStyle='#22d3ee';g.lineWidth=2;g.stroke();
+ g.fillStyle='#e6ecff';g.fillText('z (antenna axis)',cx+6,cy-R-4+12)}
+function drawH(){const[g,W,H]=sz($('cH'));g.clearRect(0,0,W,H);const cx=W/2,cy=H/2,R=Math.min(W,H)/2-20;rings(g,cx,cy,R);
+ g.beginPath();g.arc(cx,cy,R,0,7);g.fillStyle='rgba(167,139,250,.25)';g.fill();g.strokeStyle='#a78bfa';g.lineWidth=2;g.stroke()}
+function drawS(){const[g,W,H]=sz($('cS'));g.clearRect(0,0,W,H);const m={l:46,r:14,t:12,b:32},w=W-m.l-m.r,h=H-m.t-m.b,n=sw.ys.length;
+ const X=i=>m.l+i/(n-1)*w,Y=v=>m.t+Math.min(Math.max(-v,0),40)/40*h;g.font='11px Segoe UI';g.fillStyle='#8b97c3';g.strokeStyle='rgba(255,255,255,.1)';
+ for(let d=0;d<=40;d+=10){g.beginPath();g.moveTo(m.l,Y(-d));g.lineTo(W-m.r,Y(-d));g.stroke();g.fillText(-d+' dB',6,Y(-d)+4)}
+ for(let i=0;i<=4;i++){const x=m.l+i/4*w;g.fillText(f2(sw.fs[Math.round(i/4*(n-1))]/1e6,0),x-10,H-10)}g.fillText('MHz',W-34,H-10);
+ if(sw.bw>0){g.fillStyle='rgba(52,211,153,.18)';g.fillRect(X(sw.l),m.t,X(sw.r)-X(sw.l),h)}
+ g.setLineDash([5,4]);g.strokeStyle='#fb7185';g.beginPath();g.moveTo(m.l,Y(-10));g.lineTo(W-m.r,Y(-10));g.stroke();g.fillStyle='#fb7185';g.fillText('−10 dB (VSWR 2)',W-120,Y(-10)-4);
+ g.strokeStyle='#fbbf24';g.beginPath();g.moveTo(X(75),m.t);g.lineTo(X(75),m.t+h);g.stroke();g.setLineDash([]);
+ g.beginPath();sw.ys.forEach((v,i)=>i?g.lineTo(X(i),Y(v)):g.moveTo(X(i),Y(v)));g.strokeStyle='#22d3ee';g.lineWidth=2.5;g.stroke();
+ g.beginPath();g.arc(X(75),Y(S.s11),5,0,7);g.fillStyle='#fbbf24';g.fill();g.fillStyle='#fbbf24';g.fillText('operating point '+f2(S.s11,1)+' dB',X(75)+8,Y(S.s11)-8)}
+
+function drawAnt(t){const[g,W,H]=sz($('cAnt'));g.clearRect(0,0,W,H);if(!S)return;const p=P(),cx=W*.5,cy=H/2,s=(H-70)/Math.max(p.L,S.lam),top=cy-p.L/2*s,bot=cy+p.L/2*s;
+ for(let i=0;i<5;i++){const r=((t/25+i*70)%350);g.strokeStyle=`rgba(34,211,238,${.35*(1-r/350)})`;g.lineWidth=1.5;g.beginPath();g.ellipse(cx,cy,r*1.4,r*.6,0,0,7);g.stroke()}
+ const rx=40,lh=S.lam*s/2;g.strokeStyle='#fbbf24';g.lineWidth=2;g.beginPath();g.moveTo(rx,cy-lh);g.lineTo(rx,cy+lh);g.moveTo(rx-6,cy-lh);g.lineTo(rx+6,cy-lh);g.moveTo(rx-6,cy+lh);g.lineTo(rx+6,cy+lh);g.stroke();
+ g.fillStyle='#fbbf24';g.font='12px Segoe UI';g.fillText('λ = '+f2(S.lam,3)+' m',rx+10,cy+4);
+ g.strokeStyle='rgba(167,139,250,.9)';g.lineWidth=2.5;g.beginPath();const amp=Math.cos(t/220);
+ for(let i=0;i<=240;i++){const z=-p.L/2+p.L*i/240,I=Math.sin(S.k*(p.L/2-Math.abs(z)))*amp,x=cx+Math.min(Math.max(I,-1.6),1.6)*70,y=cy-z*s;i?g.lineTo(x,y):g.moveTo(x,y)}g.stroke();
+ g.strokeStyle='#e2e8f0';g.lineWidth=Math.max(3,Math.min(12,p.a*1500));g.lineCap='round';g.beginPath();g.moveTo(cx,top);g.lineTo(cx,cy-6);g.moveTo(cx,cy+6);g.lineTo(cx,bot);g.stroke();
+ g.beginPath();g.arc(cx,cy,6+2*Math.sin(t/150),0,7);g.fillStyle='#fb7185';g.fill();
+ g.fillStyle='#e6ecff';g.font='12px Segoe UI';g.fillText('Feed (Z₀ = '+p.Z+' Ω)',cx+14,cy+4);g.fillText('L = '+f2(p.L,3)+' m ('+f2(p.L/S.lam,3)+' λ)',cx+14,top+4);
+ g.fillStyle='#a78bfa';g.fillText('I(z,t) = I₀ sin[k(L/2−|z|)] cos ωt',W-250,H-12)}
+
+let ry=0,rx=.55,drag=null;const c3=$('c3');
+c3.onpointerdown=e=>{drag=[e.clientX,e.clientY];c3.setPointerCapture(e.pointerId)};
+c3.onpointermove=e=>{if(drag){ry+=(e.clientX-drag[0])*.01;rx=Math.max(-1.5,Math.min(1.5,rx+(e.clientY-drag[1])*.01));drag=[e.clientX,e.clientY]}};
+c3.onpointerup=()=>drag=null;
+function draw3D(){const[g,W,H]=sz(c3);g.clearRect(0,0,W,H);if(!PT.length)return;if(!drag)ry+=.008;
+ const nt=36,np=40,sc=Math.min(W,H)*.4,V=[],cr=Math.cos(ry),sr=Math.sin(ry),cx=Math.cos(rx),sx=Math.sin(rx);
+ for(let i=0;i<=nt;i++){V[i]=[];const th=i/nt*Math.PI,r=PT[i*5];for(let j=0;j<=np;j++){const ph=j/np*2*Math.PI,x=r*Math.sin(th)*Math.cos(ph),y=r*Math.sin(th)*Math.sin(ph),z=r*Math.cos(th);
+  const x1=x*cr-y*sr,y1=x*sr+y*cr,y2=y1*cx-z*sx,z2=y1*sx+z*cx;V[i][j]={X:W/2+x1*sc,Y:H/2-z2*sc,d:y2,r}}}
+ const q=[];for(let i=0;i<nt;i++)for(let j=0;j<np;j++){const a=V[i][j],b=V[i+1][j],c=V[i+1][j+1],d=V[i][j+1];q.push([a,b,c,d,(a.d+b.d+c.d+d.d)/4,(a.r+b.r+c.r+d.r)/4])}
+ q.sort((u,v)=>v[4]-u[4]);g.lineWidth=.5;
+ for(const[a,b,c,d,,r]of q){g.beginPath();g.moveTo(a.X,a.Y);g.lineTo(b.X,b.Y);g.lineTo(c.X,c.Y);g.lineTo(d.X,d.Y);g.closePath();g.fillStyle=`hsla(${250-190*r},80%,${38+22*r}%,.92)`;g.fill();g.strokeStyle='rgba(255,255,255,.12)';g.stroke()}
+ const ax=(x,y,z)=>{const x1=x*cr-y*sr,y1=x*sr+y*cr;return[W/2+x1*sc,H/2-(y1*sx+z*cx)*sc]};const e=ax(0,0,1.25);
+ g.strokeStyle='#fbbf24';g.lineWidth=1.5;g.beginPath();g.moveTo(W/2,H/2);g.lineTo(e[0],e[1]);g.stroke();g.fillStyle='#fbbf24';g.font='11px Segoe UI';g.fillText('z',e[0]+4,e[1])}
+(function loop(t){drawAnt(t);draw3D();requestAnimationFrame(loop)})(0);
+
+/* ---------- AI: Genetic Algorithm ---------- */
+let best=null;
+function fit(ind,p,mode){const lam=C/p.f,r=A(p,p.f,ind.l*lam,ind.a),m=Math.min(-r.s11,30);return mode==0?r.real:mode==1?m:.6*r.real/2+.4*m/30}
+function runGA(){const p=P(),mode=+$('goal').value,lam=C/p.f;let pop=Array.from({length:36},()=>({l:.3+Math.random(),a:.5+Math.random()*7.5})),gen=0;const hist=[];$('bAI').disabled=true;$('bApply').style.display='none';
+ const rnd=()=>{let u=0;for(let i=0;i<6;i++)u+=Math.random();return(u-3)/1.2};
+ (function step(){pop.forEach(i=>i.f=fit(i,p,mode));pop.sort((x,y)=>y.f-x.f);hist.push(pop[0].f);drawGA(hist);
+  $('aiOut').innerHTML=`Generation ${gen+1}/45 • best fitness = <b>${f2(pop[0].f,3)}</b> • L = ${f2(pop[0].l*lam,3)} m`;
+  if(++gen>=45){finish(pop[0],p,lam);return}
+  const nx=pop.slice(0,4),tour=()=>{const a=pop[Math.random()*pop.length|0],b=pop[Math.random()*pop.length|0];return a.f>b.f?a:b};
+  while(nx.length<pop.length){const a=tour(),b=tour(),w=Math.random();let l=w*a.l+(1-w)*b.l,r=w*a.a+(1-w)*b.a;if(Math.random()<.35)l+=rnd()*.03;if(Math.random()<.35)r+=rnd()*.5;
+   nx.push({l:Math.min(1.3,Math.max(.3,l)),a:Math.min(8,Math.max(.5,r))})}
+  pop=nx;setTimeout(step,40)})()}
+function finish(b,p,lam){best={L:b.l*lam,a:b.a};const r=A(p,p.f,best.L,b.a/1000,true);$('bAI').disabled=false;$('bApply').style.display='inline-block';
+ $('aiOut').innerHTML=`<b>✅ AI recommendation</b><br>Length <b>${f2(best.L,3)} m</b> (${f2(b.l,3)}λ), radius <b>${f2(b.a,1)} mm</b><br>Predicted: S11 = ${f2(r.s11,1)} dB, VSWR = ${f2(r.vswr,2)}, gain = ${f2(r.Gd)} dBi, efficiency = ${f2(r.eff*100,1)}%.<br><i>Insight: the optimum is ${f2((1-best.L/(lam/2))*100,1)}% ${best.L<lam/2?'shorter':'longer'} than the textbook λ/2 length – the end-effect (finite thickness) shifts the resonance, and the GA finds it automatically.</i>`}
+function drawGA(h){const[g,W,H]=sz($('cGA'));g.clearRect(0,0,W,H);const mn=Math.min(...h),mx=Math.max(...h)+1e-9,m=30;g.strokeStyle='rgba(255,255,255,.12)';g.strokeRect(m,8,W-m-8,H-26);
+ g.beginPath();h.forEach((v,i)=>{const x=m+i/44*(W-m-8),y=8+(1-(v-mn)/(mx-mn||1))*(H-26);i?g.lineTo(x,y):g.moveTo(x,y)});g.strokeStyle='#34d399';g.lineWidth=2.5;g.stroke();
+ g.fillStyle='#8b97c3';g.font='10px Segoe UI';g.fillText('generation →',W/2-20,H-4)}
+$('bAI').onclick=runGA;
+$('bApply').onclick=()=>{$('L').value=best.L.toFixed(3);$('a').value=Math.min(10,Math.max(.2,best.a)).toFixed(1);update()};
+
+/* ---------- events ---------- */
+['f','L','a','m','z'].forEach(i=>$(i).addEventListener('input',update));
+$('bHalf').onclick=()=>{$('L').value=(C/P().f/2).toFixed(3);update()};
+$('bRes').onclick=()=>{$('L').value=resL(P()).toFixed(3);update()};
+$('bRst').onclick=()=>{$('f').value=300;$('L').value=.47;$('a').value=1;$('m').selectedIndex=0;$('z').selectedIndex=0;update()};
+addEventListener('resize',update);update();
+</script></body></html>
